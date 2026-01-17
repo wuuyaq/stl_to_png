@@ -47,22 +47,91 @@ Requires a modern browser with WebGL support:
 - Safari 14+
 - Opera 76+
 
-## GitHub Pages Setup
 
-This project is ready for GitHub Pages. Simply:
+### Command Line Rendering
 
-1. Create a new GitHub repository
-2. Upload all files from this directory
-3. Enable GitHub Pages in repository settings
-4. Select the main branch as source
+For command-line rendering with full control over parameters:
 
-Your site will be available at: `https://username.github.io/repository-name/`
+```bash
+node render.js <stl-file> [options]
+```
 
-## Files
+**Single Image Mode:**
+```bash
+node render.js <stl-file> --angle <x,y,z> --output <output.png> [options]
+```
 
-- `index.html` - Main application (contains all code)
-- `app.js` - JavaScript module (separated for clarity)
-- `README.md` - This file
+**Batch Mode:**
+```bash
+node render.js <stl-file> --views <number> [options]
+```
+
+**Options:**
+
+- `--size, -s <size>` - Image size in pixels (default: 1024)
+- `--bg-color, -b <color>` - Background color (default: 0xf0f0f0)
+- `--model-color, -m <color>` - Model color (default: 0x4a90d9)
+- `--angle, -a <x,y,z>` - Camera angle for single image
+- `--output, -o <file>` - Output filename for single image
+- `--views, -v <number>` - Number of views for batch mode (default: 16)
+- `--output-dir, -d <dir>` - Output directory (default: output)
+- `--help, -h` - Show help message
+
+**Examples:**
+
+```bash
+# Help
+node render.js --help
+
+# Single front view (red on black)
+node render.js model.stl --angle 1,0,0 --output front.png --bg-color black --model-color red
+
+# Single top view (blue on white, 512x512)
+node render.js model.stl --angle 0,1,0 --output top.png --bg-color white --model-color blue --size 512
+
+# 32 views with 2048x2048 images
+node render.js model.stl --views 32 --size 2048
+
+# Custom colors and size
+node render.js model.stl --bg-color gray --model-color green --size 1920x1080
+
+# Default 16 views
+node render.js model.stl
+```
+
+This will create PNG files named `model_view_1.png`, `model_view_2.png`, etc. in specified directory.
+
+**Note:** Command line rendering requires a display environment. If running on a headless server, use the web interface instead.
+
+## Camera Views
+
+The default 16 views are generated using a golden angle distribution algorithm, which ensures even coverage around the 3D object from all angles including diagonal views.
+
+## Lighting Setup
+
+The renderer uses a multi-light setup for optimal visibility:
+
+- Ambient light (40% intensity) for base illumination
+- Three directional lights from different angles for highlights
+- Hemisphere light for natural sky/ground lighting
+
+## Image Settings
+
+**HTML App (Fixed):**
+- Resolution: 1024x1024 pixels
+- Background: 0xf0f0f0 (light gray)
+- Model Color: 0x4a90d9 (blue)
+- Format: PNG with RGBA
+- Color space: sRGB
+
+**Node.js Script (Customizable):**
+- Resolution: Customizable (default: 1024x1024)
+- Background: Customizable (default: 0xf0f0f0)
+- Model Color: Customizable (default: 0x4a90d9)
+- Format: PNG with RGBA
+- Color space: sRGB for accurate colors
+
+Both use identical rendering logic for consistent results.
 
 ## License
 
