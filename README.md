@@ -8,7 +8,9 @@ It also can be used to generate thumbnails from a stl and its lightweight so its
 
 ## Live Demo
 
-Open `index.html` in your browser or visit the GitHub Pages site.
+Here -> https://wuuyaq.github.io/stl_to_png/
+
+Or Download and open `index.html` in your browser
 
 ## Usage
 
