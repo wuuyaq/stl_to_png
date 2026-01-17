@@ -1,6 +1,10 @@
-# STL to PNG Renderer - GitHub Pages
+# STL to PNG Renderer
 
 A simple browser-based tool to render STL 3D models as PNG images from multiple angles.
+
+Additional there is a nodejs script do run this to automate image recognition for llm with STL files.
+
+It also can be used to generate thumbnails from a stl and its lightweight so its easy to change and extend with an LLM, i hope it can help.
 
 ## Live Demo
 
