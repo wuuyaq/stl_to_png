@@ -57,17 +57,17 @@ Requires a modern browser with WebGL support:
 For command-line rendering with full control over parameters:
 
 ```bash
-node render.js <stl-file> [options]
+node render_stl_to_png.js <stl-file> [options]
 ```
 
 **Single Image Mode:**
 ```bash
-node render.js <stl-file> --angle <x,y,z> --output <output.png> [options]
+node render_stl_to_png.js <stl-file> --angle <x,y,z> --output <output.png> [options]
 ```
 
 **Batch Mode:**
 ```bash
-node render.js <stl-file> --views <number> [options]
+node render_stl_to_png.js <stl-file> --views <number> [options]
 ```
 
 **Options:**
@@ -85,22 +85,22 @@ node render.js <stl-file> --views <number> [options]
 
 ```bash
 # Help
-node render.js --help
+node render_stl_to_png.js --help
 
 # Single front view (red on black)
-node render.js model.stl --angle 1,0,0 --output front.png --bg-color black --model-color red
+node render_stl_to_png.js model.stl --angle 1,0,0 --output front.png --bg-color black --model-color red
 
 # Single top view (blue on white, 512x512)
-node render.js model.stl --angle 0,1,0 --output top.png --bg-color white --model-color blue --size 512
+node render_stl_to_png.js model.stl --angle 0,1,0 --output top.png --bg-color white --model-color blue --size 512
 
 # 32 views with 2048x2048 images
-node render.js model.stl --views 32 --size 2048
+node render_stl_to_png.js model.stl --views 32 --size 2048
 
 # Custom colors and size
-node render.js model.stl --bg-color gray --model-color green --size 1920x1080
+node render_stl_to_png.js model.stl --bg-color gray --model-color green --size 1920x1080
 
 # Default 16 views
-node render.js model.stl
+node render_stl_to_png.js model.stl
 ```
 
 This will create PNG files named `model_view_1.png`, `model_view_2.png`, etc. in specified directory.
