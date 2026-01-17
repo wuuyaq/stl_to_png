@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STL to PNG Renderer</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f0f0f0;
+      color: #333;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    #drop-zone {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #4a90d9;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    
+    #drop-zone.dragover {
+      background: #3a7bc8;
+      transform: scale(1.02);
+    }
+    
+    #drop-zone.hidden {
+      display: none;
+    }
+    
+    #drop-zone-content {
+      text-align: center;
+      color: white;
+      padding: 60px;
+      border: 3px dashed rgba(255,255,255,0.6);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      max-width: 600px;
+    }
+    
+    #drop-zone h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    
+    #drop-zone p {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+    }
+    
+    #drop-zone .icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+    
+    #gallery {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #f0f0f0;
+      overflow: hidden;
+    }
+    
+    #gallery.show {
+      display: block;
+    }
+    
+    #images-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      width: 100%;
+      height: 100%;
+      gap: 2px;
+      padding: 2px;
+    }
+    
+    .image-item {
+      background: #f0f0f0;
+      overflow: hidden;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      position: relative;
+    }
+    
+    .image-item:hover {
+      opacity: 0.8;
+    }
+    
+    .image-item img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #f0f0f0;
+    }
+    
+    #loading {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(240, 240, 240, 0.95);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    
+    #loading.show {
+      display: flex;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e0e0e0;
+      border-top: 4px solid #4a90d9;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    #loading p {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    #loading .progress {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    #file-input {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="drop-zone">
+    <div id="drop-zone-content">
+      <div class="icon">📁</div>
+      <h1>Drop STL File Here</h1>
+      <p>or click to browse</p>
+      <p style="font-size: 14px; opacity: 0.7;">Supported: .stl files</p>
+    </div>
+  </div>
+  
+  <input type="file" id="file-input" accept=".stl">
+  
+  <div id="gallery">
+    <div id="images-grid"></div>
+  </div>
+  
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Rendering STL...</p>
+    <p class="progress" id="loading-progress">Loading model...</p>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const gallery = document.getElementById('gallery');
+    const imagesGrid = document.getElementById('images-grid');
+    const loading = document.getElementById('loading');
+    const loadingProgress = document.getElementById('loading-progress');
+
+    let scene, camera, renderer;
+
+    function initScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf0f0f0);
+
+      camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
+      camera.position.z = 100;
+
+      renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: true
+      });
+      renderer.setSize(1024, 1024);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
+      directionalLight1.position.set(30, 60, 30);
+      scene.add(directionalLight1);
+
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.7);
+      directionalLight2.position.set(-30, 60, -30);
+      scene.add(directionalLight2);
+
+      const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.5);
+      directionalLight3.position.set(0, -30, 30);
+      scene.add(directionalLight3);
+
+      const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
+      scene.add(hemisphereLight);
+    }
+
+    function loadSTL(arrayBuffer) {
+      const loader = new STLLoader();
+      return loader.parse(arrayBuffer);
+    }
+
+    function centerGeometry(geometry) {
+      geometry.computeBoundingBox();
+      const boundingBox = geometry.boundingBox;
+      const center = new THREE.Vector3();
+      boundingBox.getCenter(center);
+
+      const positionAttribute = geometry.attributes.position;
+      const positions = positionAttribute.array;
+
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i] -= center.x;
+        positions[i + 1] -= center.y;
+        positions[i + 2] -= center.z;
+      }
+
+      positionAttribute.needsUpdate = true;
+      geometry.computeBoundingBox();
+      
+      const size = new THREE.Vector3();
+      geometry.boundingBox.getSize(size);
+      
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      const fov = camera.fov * (Math.PI / 180);
+      const distance = (maxDim * 0.7) / Math.tan(fov / 2);
+      const cameraDistance = Math.max(distance, 1);
+
+      return { cameraDistance, size };
+    }
+
+    function generateCameraViews(count) {
+      const views = [];
+      const goldenAngle = 2.39996323;
+
+      for (let i = 0; i < count; i++) {
+        const theta = i * goldenAngle * Math.PI;
+        const phi = Math.acos(1 - 2 * (i + 0.5) / count);
+
+        const x = Math.sin(phi) * Math.cos(theta);
+        const y = Math.sin(phi) * Math.sin(theta);
+        const z = Math.cos(phi);
+
+        views.push({ x, y, z });
+      }
+
+      return views;
+    }
+
+    async function renderImages(geometry, cameraDistance, numViews = 16) {
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x4a90d9,
+        metalness: 0.3,
+        roughness: 0.5
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, 0, 0);
+      scene.add(mesh);
+
+      const views = generateCameraViews(numViews);
+      const images = [];
+
+      camera.aspect = 1;
+      camera.updateProjectionMatrix();
+
+      for (let i = 0; i < views.length; i++) {
+        loadingProgress.textContent = `Rendering view ${i + 1} of ${numViews}...`;
+
+        camera.position.set(
+          views[i].x * cameraDistance,
+          views[i].y * cameraDistance,
+          views[i].z * cameraDistance
+        );
+        camera.lookAt(0, 0, 0);
+        renderer.render(scene, camera);
+
+        const dataURL = renderer.domElement.toDataURL('image/png');
+        images.push(dataURL);
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+
+      return images;
+    }
+
+    function displayImages(images, baseName) {
+      imagesGrid.innerHTML = '';
+
+      images.forEach((dataURL, index) => {
+        const item = document.createElement('div');
+        item.className = 'image-item';
+        
+        const img = document.createElement('img');
+        img.src = dataURL;
+        img.alt = `View ${index + 1}`;
+
+        item.appendChild(img);
+
+        item.addEventListener('click', () => {
+          const link = document.createElement('a');
+          link.download = `${baseName}_view_${index + 1}.png`;
+          link.href = dataURL;
+          link.click();
+        });
+
+        imagesGrid.appendChild(item);
+      });
+
+      dropZone.classList.add('hidden');
+      gallery.classList.add('show');
+    }
+
+    async function processSTL(file) {
+      loading.classList.add('show');
+      loadingProgress.textContent = 'Loading STL file...';
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        
+        initScene();
+        loadingProgress.textContent = 'Parsing geometry...';
+        const geometry = loadSTL(arrayBuffer);
+        
+        loadingProgress.textContent = 'Centering model...';
+        const { cameraDistance, size } = centerGeometry(geometry);
+        
+        loadingProgress.textContent = 'Preparing render...';
+        const images = await renderImages(geometry, cameraDistance, 16);
+        
+        displayImages(images, file.name.replace(/\.stl$/i, ''));
+      } catch (error) {
+        console.error('Error processing STL:', error);
+        alert(`Error: ${error.message}`);
+      } finally {
+        loading.classList.remove('show');
+      }
+    }
+
+    function handleFile(file) {
+      if (!file.name.toLowerCase().endsWith('.stl')) {
+        alert('Please select an STL file');
+        return;
+      }
+      processSTL(file);
+    }
+
+    dropZone.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handleFile(file);
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        handleFile(file);
+      }
+    });
+
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    document.addEventListener('drop', (e) => {
+      if (!gallery.classList.contains('show')) return;
+      
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.toLowerCase().endsWith('.stl')) {
+        handleFile(file);
+      }
+    });
+
+    initScene();
+  </script>
+</body>
+</html>
